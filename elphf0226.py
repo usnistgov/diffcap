@@ -478,16 +478,16 @@ N.first = N.mubar - (xi.kappa * xi.grad.dot(xi.grad)
 N.first.name = "$1^{st}$"
 
 from matplotlibElPhFViewer import MatplotlibElPhFViewer
-viewer = MatplotlibElPhFViewer(phase=xi,
-                               potential=phi,
-                               components=[i.Y for i in interstitials + substitutionals 
-                                           + [N]],
-                               charge=charge,
-                               potentials=[i - i.mubarS for i in interstitials + substitutionals],
-                               limits={
-                                   'phasemax':1.,
-                                   'phasemin':0.,
-                               })
+#viewer = MatplotlibElPhFViewer(phase=xi,
+#                               potential=phi,
+#                               components=[i.Y for i in interstitials + substitutionals 
+#                                           + [N]],
+#                               charge=charge,
+#                               potentials=[i - i.mubarS for i in interstitials + substitutionals],
+#                               limits={
+#                                   'phasemax':1.,
+#                                   'phasemin':0.,
+#                               })
                                
 def dampBrownLindsay(deltaV):
     # Voltage damping of Brown & Lindsay, 
@@ -540,9 +540,12 @@ while outer < int(args["--outer_sweeps"]) and maxmu > 1e-30:
     for var in interstitials + substitutionals:
         maxmu = max(maxmu, abs(var - var.mubarS).max().value)
 
-    viewer.plot()
-
-    print Galvani(), surfaceEnergy(), surfaceCharge()
+    #viewer.plot()
+    if outer == int(args["--outer_sweeps"]) -1: 
+	with open("test.txt", "a") as ff:
+	    ff.write("{0} {1} {2}\n".format(Galvani(), surfaceEnergy(), surfaceCharge())) 
+    else: 
+	print Galvani(), surfaceEnergy(), surfaceCharge()
 
 if args["--output"]:
     fp.TSVViewer(vars=[xi, phi] + interstitials + substitutionals + [j.Y for j in components]).plot(filename=args["--output"])
