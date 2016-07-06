@@ -31,29 +31,17 @@
  # #############################################################################
  ##
 
-"""Usage: elphf0226.py [options]
-
-Options:
-  -h --help                    Show this text
-  --version                    Show version
-  --galvani_potential=GALVANI  Galvani potential [default: 0 V]
-  --concentration=CONC         Bulk electrolyte cation concentration [default: 0.25 mol/l]
-  --ncells=NCELLS              Number of cells in mesh [default: 120]
-  --relaxation=RELAX           Newton-Raphson relaxation coefficient [default: 1.0]
-  --outer_sweeps=OUTER         Number of sweeps of total system [default: 10]
-  --output=OUTFILE             File path to store result as TSV
-  --restart=INFILE             File path to load TSV initial conditions from 
-                               (if not provided, starts with sharp interface)
-"""
-
-from docopt import docopt
-
+import sys
+import json
 import fipy as fp
 
-args = docopt(__doc__, version="1.0.0")
+jsonfile = sys.argv[1]
+
+with open(jsonfile, 'rb') as ff:
+    params = json.load(ff)
 
 L = fp.Variable("3.2 nm")
-nx = int(args['--ncells'])
+nx = int(params['ncells'])
 dx = L / nx
 print "L =", L
 mesh = fp.Grid1D(nx=nx, dx=dx/L)
@@ -162,12 +150,12 @@ def equilibrium(Y, interstitials, substitutionals, solvent, YM):
 
 components = interstitials + substitutionals + [N]
 
-YM = (Vs * args["--concentration"]).inBaseUnits()
+YM = (Vs * str(params["concentration"])).inBaseUnits()
 Y0 = [3e-6, YM, YM, 1, 2, 1, 3e-6, 3e-6, 0]
 Y0 = optimize.fsolve(equilibrium, Y0, xtol=1e-12, 
                      args=(interstitials, substitutionals, N, YM))
 
-Galvani = fp.Variable(value=(fp.Variable(args["--galvani_potential"]) * Faraday / (R*T)).inBaseUnits(), 
+Galvani = fp.Variable(value=(fp.Variable(str(params["galvani_potential"])) * Faraday / (R*T)).inBaseUnits(), 
                       name=r'\Delta\phi^\circ')
 
 m.YL = 0.
@@ -219,8 +207,8 @@ for j in substitutionals + interstitials:
 N.mubarL = fp.numerix.log(N.YL / m.YL) + N.z * phi.L
 N.mubarL.name = r"$\bar{\mu}^L_{%s}$" % N.name.strip("$")
 
-if args["--restart"]:
-    values = fp.numerix.loadtxt(args["--restart"], skiprows=1, unpack=True)
+if "restart" in params:
+    values = fp.numerix.loadtxt(params["restart"], skiprows=1, unpack=True)
     
     xi.setValue(values[1])
     phi.setValue(values[2])
@@ -393,7 +381,7 @@ for j in interstitials:
     dmudYdMdmugradmu = j.dmudY_SG * j.dMdmu_SG * j.faceGrad
     j.J = (fp.TransientTerm(coeff=transient) 
            == (fp.DiffusionTerm(coeff=j.D)
-               - fp.PowerLawConvectionTerm(coeff=j.M_SG * j.dmudY.faceGrad)
+          - fp.PowerLawConvectionTerm(coeff=j.M_SG * j.dmudY.faceGrad)
                + fp.ImplicitSourceTerm(coeff=(j.M_SG 
                                               * j.dmudY.faceGrad).divergence)
                + fp.PowerLawConvectionTerm(coeff=dmudYdMdmugradmu)
@@ -454,7 +442,7 @@ phi.J = fp.DiffusionTerm(coeff=permittivity0 * dielectric(xi)) == -fp.ImplicitSo
 
 phi.constrain(0., where=mesh.facesLeft)
 
-relaxation = fp.Variable(value=args["--relaxation"])
+relaxation = fp.Variable(value=params["relaxation"])
 for var in [xi, phi] + interstitials + substitutionals:
     var.delta = fp.CellVariable(mesh=mesh, name="d" + var.name, value=0., hasOld=True)
     var.F = fp.CellVariable(mesh=mesh)
@@ -505,7 +493,7 @@ def dampBrownLindsay(deltaV):
 maxmu = 1e6
 
 outer = 0
-while outer < int(args["--outer_sweeps"]) and maxmu > 1e-30:
+while outer < int(params["outer_sweeps"]) and maxmu > 1e-30:
     for var in [xi, phi] + interstitials + substitutionals:
         var.updateOld()
         var.delta.setValue(0.)
@@ -541,11 +529,10 @@ while outer < int(args["--outer_sweeps"]) and maxmu > 1e-30:
         maxmu = max(maxmu, abs(var - var.mubarS).max().value)
 
     #viewer.plot()
-    if outer == int(args["--outer_sweeps"]) -1: 
+    if outer == int(params["outer_sweeps"]) -1: 
 	with open("test.txt", "a") as ff:
 	    ff.write("{0} {1} {2}\n".format(Galvani(), surfaceEnergy(), surfaceCharge())) 
     else: 
 	print Galvani(), surfaceEnergy(), surfaceCharge()
 
-if args["--output"]:
-    fp.TSVViewer(vars=[xi, phi] + interstitials + substitutionals + [j.Y for j in components]).plot(filename=args["--output"])
+fp.TSVViewer(vars=[xi, phi] + interstitials + substitutionals + [j.Y for j in components]).plot(filename="output.tsv")
