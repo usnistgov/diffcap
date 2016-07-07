@@ -31,6 +31,7 @@
  # #############################################################################
  ##
 
+import os
 import sys
 import json
 import fipy as fp
@@ -39,6 +40,9 @@ jsonfile = sys.argv[1]
 
 with open(jsonfile, 'rb') as ff:
     params = json.load(ff)
+
+if "sumatra_label" in params:
+    os.chdir(os.path.join("Data", params["sumatra_label"]))
 
 L = fp.Variable("3.2 nm")
 nx = int(params['ncells'])
