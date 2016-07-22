@@ -87,7 +87,7 @@ interstitials = [
 
 substitutionals = [
     fp.CellVariable(mesh=mesh, name="$M^+$", value=0., hasOld=True),
-    fp.CellVariable(mesh=mesh, name="$A^-$", value=0., hasOld=True)
+    fp.CellVariable(mesh=mesh, name="$A^-$", value=0., hasOld=True),
     fp.CellVariable(mesh=mesh, name="$B^+$", value=0., hasOld=True)
 ]
 
